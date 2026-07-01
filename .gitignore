@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.bak*
+/services/*/supervise/
+/services/*/log/supervise/
+/services/*/status
+/services/*/lock
