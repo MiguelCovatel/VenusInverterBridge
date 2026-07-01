@@ -42,7 +42,7 @@ Install using SetupHelper PackageManager on Venus OS.
 Package values:
 
 ```text
-GitHub user: YOUR_GITHUB_USER
+GitHub user: MiguelCovatel
 Repository: VenusInverterBridge
 Branch: main
 Package name: VenusInverterBridge
