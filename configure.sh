@@ -18,6 +18,8 @@ Serial = 000000
 DeviceInstance = 28
 DeviceIp = 127.0.0.1
 RelayId = 0
+DcVoltageFallback = 12.8
+InverterEfficiency = 0.90
 debug = false
 INIEOF
   fi
@@ -45,6 +47,8 @@ OLD_SERIAL="$(current_value Serial "000000")"
 OLD_INSTANCE="$(current_value DeviceInstance "28")"
 OLD_IP="$(current_value DeviceIp "127.0.0.1")"
 OLD_RELAY="$(current_value RelayId "0")"
+OLD_DC_FALLBACK="$(current_value DcVoltageFallback "12.8")"
+OLD_EFFICIENCY="$(current_value InverterEfficiency "0.90")"
 
 printf "Name [%s]: " "$OLD_NAME"
 read NAME
@@ -56,18 +60,26 @@ printf "DeviceIp [%s]: " "$OLD_IP"
 read DEVICE_IP
 printf "RelayId [%s]: " "$OLD_RELAY"
 read RELAY_ID
+printf "DcVoltageFallback [%s]: " "$OLD_DC_FALLBACK"
+read DC_FALLBACK
+printf "InverterEfficiency [%s]: " "$OLD_EFFICIENCY"
+read EFFICIENCY
 
 [ -n "$NAME" ] || NAME="$OLD_NAME"
 [ -n "$SERIAL" ] || SERIAL="$OLD_SERIAL"
 [ -n "$DEVICE_INSTANCE" ] || DEVICE_INSTANCE="$OLD_INSTANCE"
 [ -n "$DEVICE_IP" ] || DEVICE_IP="$OLD_IP"
 [ -n "$RELAY_ID" ] || RELAY_ID="$OLD_RELAY"
+[ -n "$DC_FALLBACK" ] || DC_FALLBACK="$OLD_DC_FALLBACK"
+[ -n "$EFFICIENCY" ] || EFFICIENCY="$OLD_EFFICIENCY"
 
 set_value Name "$NAME"
 set_value Serial "$SERIAL"
 set_value DeviceInstance "$DEVICE_INSTANCE"
 set_value DeviceIp "$DEVICE_IP"
 set_value RelayId "$RELAY_ID"
+set_value DcVoltageFallback "$DC_FALLBACK"
+set_value InverterEfficiency "$EFFICIENCY"
 
 svc -t /service/VenusInverterBridge 2>/dev/null || true
 
