@@ -35,6 +35,17 @@ class BridgeConfig:
     def get_debug(self):
         return self.config.getboolean("Setup", "debug", fallback=False)
 
+    def get_dc_voltage_fallback(self):
+        return self.config.getfloat("Setup", "DcVoltageFallback", fallback=12.8)
+
+    def get_inverter_efficiency(self):
+        value = self.config.getfloat("Setup", "InverterEfficiency", fallback=0.90)
+        if value <= 0:
+            return 0.90
+        if value > 1:
+            return value / 100
+        return value
+
     def write_to_config(self, value, section, key):
         if not self.config.has_section(section):
             self.config.add_section(section)

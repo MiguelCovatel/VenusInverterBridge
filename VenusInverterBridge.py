@@ -11,7 +11,7 @@ from vreg_link_item import GenericReg, InverterReg, VregLinkItem
 from bridge_config import BridgeConfig
 
 DEFAULT_DEVICE_IP = "127.0.0.1"
-DC_VOLTAGE_FIXED = 52.0
+DC_VOLTAGE_FALLBACK = 12.8
 
 class BridgeInverter:
     def __init__(self, device_ip=DEFAULT_DEVICE_IP, relay_id=0):
@@ -22,7 +22,7 @@ class BridgeInverter:
         self.power = 0.0
         self.relay = False
         self.frequency = 50
-        self.battery_voltage = DC_VOLTAGE_FIXED
+        self.battery_voltage = DC_VOLTAGE_FALLBACK
         self.eco_mode = False  # eco mode flag
         self.device_ip = device_ip
 
@@ -177,6 +177,25 @@ class BridgeInverterService:
         except Exception as e:
             logging.warning(f"Failed to control device relay: {e}")
 
+    def _read_battery_voltage(self):
+        try:
+            value = dbus.SystemBus().get_object(
+                "com.victronenergy.system",
+                "/Dc/Battery/Voltage",
+            ).GetValue(dbus_interface="com.victronenergy.BusItem")
+
+            if value is not None and value != [] and value != "":
+                voltage = float(value)
+                if voltage > 0:
+                    self.inverter.battery_voltage = voltage
+                    return voltage
+        except Exception as e:
+            logging.debug("Could not read system battery voltage: %s", e)
+
+        fallback = self.config.get_dc_voltage_fallback()
+        self.inverter.battery_voltage = fallback
+        return fallback
+
     def _update(self):
         self.inverter.update_from_device()
 
@@ -190,11 +209,13 @@ class BridgeInverterService:
         self._dbusservice['/Ac/Out/L1/F'] = self.inverter.frequency
 
         # DC side
-        dc_voltage = self.inverter.battery_voltage
-        dc_current = round(power / dc_voltage, 2) if dc_voltage > 0 else 0.0
+        dc_voltage = self._read_battery_voltage()
+        inverter_efficiency = self.config.get_inverter_efficiency()
+        dc_power = round(power / inverter_efficiency, 2) if inverter_efficiency > 0 else power
+        dc_current = round(dc_power / dc_voltage, 2) if dc_voltage > 0 else 0.0
         self._dbusservice['/Dc/0/Voltage'] = dc_voltage
         self._dbusservice['/Dc/0/Current'] = -dc_current
-        self._dbusservice['/Dc/0/Power'] = -power
+        self._dbusservice['/Dc/0/Power'] = -dc_power
 
         # Mode & State
         mode, state = self.inverter.get_mode_and_state()
