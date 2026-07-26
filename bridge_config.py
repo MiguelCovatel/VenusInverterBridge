@@ -1,5 +1,4 @@
 import configparser
-import logging
 import os
 import shutil
 
@@ -7,77 +6,46 @@ import shutil
 class BridgeConfig:
     def __init__(self):
         self.config = configparser.ConfigParser()
-        config_file = "%s/../conf/venus_inverter_bridge.ini" % (os.path.dirname(os.path.realpath(__file__)))
-        if not os.path.exists(config_file):
-            sample_config_file = "%s/config.sample.ini" % (os.path.dirname(os.path.realpath(__file__)))
-            shutil.copy(sample_config_file, config_file)
-        self.config.read("%s/../conf/venus_inverter_bridge.ini" % (os.path.dirname(os.path.realpath(__file__))))
+        self.app_dir = os.path.dirname(os.path.realpath(__file__))
+        self.config_file = "/data/conf/venus_inverter_bridge.ini"
+
+        os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
+
+        if not os.path.exists(self.config_file):
+            sample_config_file = os.path.join(self.app_dir, "config.sample.ini")
+            shutil.copy(sample_config_file, self.config_file)
+
+        self.config.read(self.config_file)
 
     def get_product_name(self):
-        return self.config.get('Setup', 'Name', fallback="Venus Inverter Bridge")
+        return self.config.get("Setup", "Name", fallback="Venus Inverter Bridge")
 
     def get_serial(self):
-        return self.config.get('Setup', 'Serial', fallback="XXX")
+        return self.config.get("Setup", "Serial", fallback="000000")
+
+    def get_device_instance(self):
+        return self.config.getint("Setup", "DeviceInstance", fallback=28)
 
     def get_device_ip(self):
         return self.config.get("Setup", "DeviceIp", fallback="127.0.0.1")
 
-    def get_inverter_name(self):
-        return self.config.get("Setup", "Name", fallback="Venus Inverter Bridge")
-
-    def get_inverter_serial(self):
-        return self.config.get("Setup", "Serial", fallback="000000")
+    def get_relay_id(self):
+        return self.config.getint("Setup", "RelayId", fallback=0)
 
     def get_debug(self):
-        val = self.config.get("Setup", "debug", fallback=False)
-        if val == "true":
-            return True
-        else:
-            return False
+        return self.config.getboolean("Setup", "debug", fallback=False)
 
-    def get_mqtt_address(self):
-        address = self.config.get('MQTTBroker', 'address', fallback=None)
-        if address is None:
-            logging.error("No MQTT Broker set in config.ini")
-            return address
-        else:
-            return address
+    def write_to_config(self, value, section, key):
+        if not self.config.has_section(section):
+            self.config.add_section(section)
 
-    def get_mqtt_port(self):
-        port = self.config.get('MQTTBroker', 'port', fallback=None)
-        if port is not None:
-            return int(port)
-        else:
-            return 1883
+        self.config[section][key] = str(value)
 
-    def get_mqtt_name(self):
-        return self.config.get('MQTTBroker', 'name', fallback='Device_to_Inverter')
-
-    def get_high_temperature_limit(self):
-        return self.config.get('Warnings', 'HighTemperature', fallback=65)
-
-    def get_overload_limit(self):
-        return float(self.config.get('Warnings', 'Overload', fallback=1500))
-
-    def get_low_voltage_limit(self):
-        return self.config.get('Warnings', 'LowVoltage', fallback=10.8)
-
-    def get_low_battery_shutdown(self):
-        return self.config.get('Options', 'LowBatteryShutdown', fallback=9.30)
-
-    def get_charge_detected(self):
-        return self.config.get('Options', 'ChargeDetected', fallback=14.00)
-
-    def get_topic_option(self, topic):
-        return self.config.get('Topics', topic)
-
-    def write_to_config(self, value, path, key):
-        logging.debug("Writing config file %s %s " % (path, key))
-        self.config[path][key] = str(value)
-        with open("%s/../conf/venus_inverter_bridge.ini" % (os.path.dirname(os.path.realpath(__file__))), 'w') as configfile:
+        with open(self.config_file, "w") as configfile:
             self.config.write(configfile)
 
     @staticmethod
     def get_version():
-        with open("%s/version" % (os.path.dirname(os.path.realpath(__file__))), 'r') as file:
-            return file.read()
+        version_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "version")
+        with open(version_file, "r") as file:
+            return file.read().strip()

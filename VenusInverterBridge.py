@@ -12,11 +12,11 @@ from bridge_config import BridgeConfig
 
 DEFAULT_DEVICE_IP = "127.0.0.1"
 DC_VOLTAGE_FIXED = 52.0
-DEVICE_INSTANCE = 28  # Phoenix inverter typical
 
 class BridgeInverter:
-    def __init__(self, device_ip=DEFAULT_DEVICE_IP):
+    def __init__(self, device_ip=DEFAULT_DEVICE_IP, relay_id=0):
         self.status = "OFF"
+        self.relay_id = int(relay_id)
         self.voltage = 0.0
         self.current = 0.0
         self.power = 0.0
@@ -42,10 +42,10 @@ class BridgeInverter:
             resp = requests.get(url, timeout=5)
             data = resp.json()
 
-            self.power = data["switch:0"]["apower"]
-            self.voltage = data["switch:0"]["voltage"]
-            self.current = data["switch:0"]["current"]
-            self.relay = data["switch:0"]["output"]
+            self.power = data[f"switch:{self.relay_id}"]["apower"]
+            self.voltage = data[f"switch:{self.relay_id}"]["voltage"]
+            self.current = data[f"switch:{self.relay_id}"]["current"]
+            self.relay = data[f"switch:{self.relay_id}"]["output"]
             self.status = "ON" if self.relay else "OFF"
 
             logging.info(f"Read from device: Power={self.power}, Voltage={self.voltage}, Current={self.current}, Relay={self.relay}")
@@ -59,15 +59,15 @@ class BridgeInverter:
 
 class BridgeInverterService:
     def __init__(self, device_ip=DEFAULT_DEVICE_IP):
-        logging.basicConfig(level=logging.INFO)
         self.config = BridgeConfig()
-        self.inverter = BridgeInverter(self.config.get_device_ip())
+        logging.basicConfig(level=logging.DEBUG if self.config.get_debug() else logging.INFO)
+        self.inverter = BridgeInverter(self.config.get_device_ip(), self.config.get_relay_id())
         self._dbusservice = VeDbusService("com.victronenergy.inverter.bridge")
         self._setup_paths()
         GLib.timeout_add(5000, self._update)
 
     def _setup_paths(self):
-        self._dbusservice.add_path('/DeviceInstance', DEVICE_INSTANCE)
+        self._dbusservice.add_path('/DeviceInstance', self.config.get_device_instance())
         self._dbusservice.add_path('/ProductId', 0xA291)
         self._dbusservice.add_path('/ProductName', self.config.get_product_name())
         self._dbusservice.add_path('/FirmwareVersion', 1)
@@ -169,7 +169,7 @@ class BridgeInverterService:
 
     def _set_relay(self, state: bool):
         try:
-            url = f"http://{self.device_ip}/rpc/Switch.Set?id=0&on={str(state).lower()}"
+            url = f"http://{self.inverter.device_ip}/rpc/Switch.Set?id={self.inverter.relay_id}&on={str(state).lower()}"
             resp = requests.get(url, timeout=5)
             resp.raise_for_status()
             self.inverter.relay = state
